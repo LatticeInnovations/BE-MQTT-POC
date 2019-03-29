@@ -5,12 +5,18 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@Component
+@Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public final class DBConnection {
 
 	private static DBConnection dbConnection;

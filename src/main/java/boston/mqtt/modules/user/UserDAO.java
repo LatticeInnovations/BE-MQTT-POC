@@ -10,6 +10,8 @@ import java.util.Properties;
 
 import javax.annotation.PostConstruct;
 
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import boston.mqtt.config.MqttUtil;
@@ -24,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public final class UserDAO {
 
 	private static final String PROPERTIES_FILE_NAME = "/query.properties";
@@ -34,7 +37,7 @@ public final class UserDAO {
 		properties.load(UserDAO.class.getResourceAsStream(PROPERTIES_FILE_NAME));
 	}
 
-	public static void getUsersService(String clientId) {
+	public static void getUsersService(long clientId) {
 		final Connection con = DBConnection.getInstance().getConnection();
 		PreparedStatement getUsersStatement = null;
 		PreparedStatement existingAmsUserSync = null;
@@ -48,11 +51,11 @@ public final class UserDAO {
 		try {
 			con.setAutoCommit(false);
 			existingAmsUserSync = con.prepareStatement(properties.getProperty("QUERY_FETCH_EXISTING_AMS_USER_SYNC_LOG"));
-			existingAmsUserSync.setString(1, clientId);
+			existingAmsUserSync.setLong(1, clientId);
 			amsResultSets = existingAmsUserSync.executeQuery();
 			if (amsResultSets.first()) {
 				con.commit();
-				// ams user sync log exist
+				// ams user sync log exists
 				getUsersStatement = con.prepareStatement(properties.getProperty("QUERY_FETCH_UNSYNCED_USERS"));
 				getUsersStatement.setTimestamp(1, amsResultSets.getTimestamp("last_synced_on"));
 			} else {
@@ -126,10 +129,10 @@ public final class UserDAO {
 				 published = PublishResponse.mqttPublishMessage(MqttUtil.mqttAsyncClient, ResponseMessage.newBuilder()
 						 .setMessage("User(s) already synced to device.")
 						 .build()
-						 .toByteArray(), clientId);
+						 .toByteArray(), clientId, "users/");
 			}
 			if (published) {
-				log.info("Response published to ams successfully..");
+				log.info("Users published to ams successfully..");
 			} else {
 				log.info("Something went wrong.");
 			}
@@ -148,7 +151,7 @@ public final class UserDAO {
 		}
 	}
 
-	public static void saveAmsUserSyncLog(String clientId, long timestamp) {
+	public static void saveAmsUserSyncLog(long clinetId, Timestamp timestamp) {
 		final Connection con = DBConnection.getInstance().getConnection();
 		PreparedStatement updateSyncLogStmt = null;
 		PreparedStatement existingAmsUserSync = null;
@@ -157,18 +160,18 @@ public final class UserDAO {
 		try {
 			con.setAutoCommit(false);
 			existingAmsUserSync = con.prepareStatement(properties.getProperty("QUERY_FETCH_EXISTING_AMS_USER_SYNC_LOG"));
-			existingAmsUserSync.setString(1, clientId);
+			existingAmsUserSync.setLong(1, clinetId);
 			amsResultSets = existingAmsUserSync.executeQuery();
 			if (amsResultSets.first()) {
 				// update existing record
 				updateSyncLogStmt = con.prepareStatement(properties.getProperty("UPDATE_AMS_USER_SYNC_LOG"));
-				updateSyncLogStmt.setTimestamp(1, new Timestamp(timestamp));
-				updateSyncLogStmt.setString(2, clientId);
+				updateSyncLogStmt.setTimestamp(1, timestamp);
+				updateSyncLogStmt.setLong(2, clinetId);
 			} else {
 				// new insert in ams_user_sync table
 				updateSyncLogStmt = con.prepareStatement(properties.getProperty("INSERT_AMS_USER_SYNC_LOG"));
-				updateSyncLogStmt.setString(1, clientId);
-				updateSyncLogStmt.setTimestamp(2, new Timestamp(timestamp));
+				updateSyncLogStmt.setLong(1, clinetId);
+				updateSyncLogStmt.setTimestamp(2, timestamp);
 			}
 			log.info(updateSyncLogStmt.toString());
 			result = updateSyncLogStmt.executeUpdate();

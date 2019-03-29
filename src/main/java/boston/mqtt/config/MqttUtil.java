@@ -13,11 +13,16 @@ import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
 /**
  * This class holds the MQTT methods to Connect, Publish & Subscribe to Broker
  *
  */
+@Component
+@Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class MqttUtil {
 
 	private static final Logger logger = LogManager.getLogger(MqttUtil.class);

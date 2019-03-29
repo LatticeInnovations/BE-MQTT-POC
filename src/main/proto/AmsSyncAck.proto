@@ -6,6 +6,6 @@ option java_package = "boston.mqtt.model";
 option java_outer_classname = "AmsSyncAckProto";
 
 message AmsSyncAck {
-   string clientId = 1;
+   int64 clientId = 1;
    bool received = 2;
 }
