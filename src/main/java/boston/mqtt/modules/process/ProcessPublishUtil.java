@@ -1,4 +1,4 @@
-package boston.mqtt.config;
+package boston.mqtt.modules.process;
 
 import org.eclipse.paho.client.mqttv3.MqttAsyncClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
@@ -12,20 +12,19 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
-public final class PublishResponse {
+public class ProcessPublishUtil {
 
-	private PublishResponse() {
-	}
-
-	public static boolean mqttPublishMessage(MqttAsyncClient mqttClient, byte[] response, long clientId, String topic) {
+	public static boolean mqttPublishProcess(MqttAsyncClient mqttClient, byte[] processList, long clientId) {
 		try {
-			MqttMessage message = new MqttMessage(response);
+			MqttMessage message = new MqttMessage(processList);
 			message.setQos(0);
 			message.setRetained(false);
-			mqttClient.publish("response/" + topic + "/" + clientId, message);
+			mqttClient.publish("ams/sync/process/" + clientId, message);
 			return true;
 		} catch (MqttException e) {
-			log.error("Exception At: {}", e);
+			log.error("msg: " + e.getMessage());
+			log.error("cause: " + e.getCause());
+			e.printStackTrace();
 			return false;
 		}
 	}

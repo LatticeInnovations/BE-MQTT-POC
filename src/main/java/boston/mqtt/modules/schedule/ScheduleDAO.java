@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import boston.mqtt.config.MqttUtil;
 import boston.mqtt.config.PublishResponse;
 import boston.mqtt.conn.manager.DBConnection;
+import boston.mqtt.constants.Constants;
 import boston.mqtt.model.ResponseMessageProto.ResponseMessage;
 import boston.mqtt.model.ScheduleSyncResponseProto.ScheduleSyncResponse;
 import boston.mqtt.model.ScheduleSyncResponseProto.ScheduleSyncResponse.Schedule;
@@ -55,45 +56,40 @@ public final class ScheduleDAO {
 				// ams schedule sync log exists
 				getSchedulesStatement = con.prepareStatement(properties.getProperty("QUERY_FETCH_UNSYNCED_SCHEDULES"));
 				getSchedulesStatement.setLong(1, clientId);
-				getSchedulesStatement.setTimestamp(2, amsResultSets.getTimestamp("last_synced_on"));
+				getSchedulesStatement.setTimestamp(2, amsResultSets.getTimestamp(Constants.LAST_SYNCED_ON));
 			} else {
 				con.commit();
 				// new ams device
 				getSchedulesStatement = con.prepareStatement(properties.getProperty("QUERY_FETCH_ALL_SCHEDULES"));
 				getSchedulesStatement.setLong(1, clientId);
 			}
-			log.info(getSchedulesStatement.toString());
 			resultSet = getSchedulesStatement.executeQuery();
 			if (resultSet.first()) {
 				resultSet.beforeFirst();
 				ScheduleSyncResponse.Builder schedulesList = ScheduleSyncResponse.newBuilder();
 				while (resultSet.next()) {
 						Schedule.Builder schedule = Schedule.newBuilder()
-								.setScheduleId(resultSet.getLong("schedule_id"))
-								.setSchStartDate(resultSet.getLong("start_date_time"))
-								.setSchEndDate(resultSet.getLong("end_date_time"))
-								.setAmsId(resultSet.getLong("ams_id"))
-								.setProcessId(resultSet.getString("process_id"))
-								.setProcessTitle(resultSet.getString("title"))	
-								.setCreatedOn(resultSet.getString("created_on"))
-								.setUpdatedOn(resultSet.getString("updated_on"));
-						if (resultSet.getString("manager_id") != null) {
-							schedule.setManagerId(resultSet.getLong("manager_id"));
-							schedule.setManagerUsername(resultSet.getString("user_name"));
-						}
-						else {
-							schedule.clearManagerId();
-							schedule.clearManagerUsername();
+								.setScheduleId(resultSet.getLong(Constants.COLUMN_SCHEDULE_ID))
+								.setSchStartDate(resultSet.getLong(Constants.COLUMN_START_DATE_TIME))
+								.setSchEndDate(resultSet.getLong(Constants.COLUMN_END_DATE_TIME))
+								.setAmsId(resultSet.getLong(Constants.COLUMN_AMS_ID))
+								.setProcessId(resultSet.getString(Constants.COLUMN_PROCESS_ID))
+								.setProcessTitle(resultSet.getString(Constants.COLUMN_TITLE))	
+								.setCreatedOn(resultSet.getString(Constants.CREATED_ON))
+								.setUpdatedOn(resultSet.getString(Constants.UPDATED_ON));
+						if (resultSet.getString(Constants.COLUMN_MANAGER_ID) != null) {
+							schedule.setManagerId(resultSet.getLong(Constants.COLUMN_MANAGER_ID));
+							schedule.setManagerUsername(resultSet.getString(Constants.COLUMN_USER_NAME));
 						}
 						getOperators = con.prepareStatement(properties.getProperty("QUERY_FETCH_USER_OPERATORS"));
-						getOperators.setLong(1, resultSet.getLong("schedule_id"));
+						getOperators.setLong(1, resultSet.getLong(Constants.COLUMN_SCHEDULE_ID));
 						operatorsResultSet = getOperators.executeQuery();
 						if (operatorsResultSet.first()) {
 							operatorsResultSet.beforeFirst();
 							while (operatorsResultSet.next()) {
 								Operators operator = Operators.newBuilder()
-								.setUserId(operatorsResultSet.getLong("user_id"))
-								.setUsername(operatorsResultSet.getString("user_name"))
+								.setUserId(operatorsResultSet.getLong(Constants.COLUMN_USER_ID))
+								.setUsername(operatorsResultSet.getString(Constants.COLUMN_USER_NAME))
 								.build();
 							schedule.addOperators(operator);
 							}
@@ -114,15 +110,15 @@ public final class ScheduleDAO {
 			if (published) {
 				log.info("Schedule(s) published to ams successfully..");
 			} else {
-				log.info("Something went wrong.");
+				log.info(Constants.SOMETHING_WENT_WRONG);
 			}
 		} catch (Exception e) {
 			try {
 				con.rollback();
 			} catch (SQLException e2) {
-				log.error("Exception At: ", e2);
+				log.error(Constants.EXCEPTION, e2);
 			}
-			log.error("Exception At: ", e);
+			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.getInstance().closeConnection(con, getOperators);
 			DBConnection.getInstance().closeConnection(con, getSchedulesStatement);
@@ -152,22 +148,21 @@ public final class ScheduleDAO {
 				updateSyncLogStmt.setLong(1, clientId);
 				updateSyncLogStmt.setTimestamp(2, timestamp);
 			}
-			log.info(updateSyncLogStmt.toString());
 			result = updateSyncLogStmt.executeUpdate();
 			if (result == 1) {
 				con.commit();
 				log.info("AMS schedule sync info successfully saved.");
 			} else {
 				con.rollback();
-				throw new RuntimeException("Ams sync log info not saved.");
+				log.error("Ams sync log info not saved.");
 			}
 		} catch (Exception e) {
 			try {
 				con.rollback();
 			} catch (SQLException e2) {
-				log.error("Exception At: ", e2);
+				log.error(Constants.EXCEPTION, e2);
 			}
-			log.error("Exception At: ", e);
+			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.getInstance().closeConnection(con, updateSyncLogStmt);
 			DBConnection.getInstance().closeConnection(con, existingAmsScheduleSync);

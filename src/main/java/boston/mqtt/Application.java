@@ -1,5 +1,6 @@
 package boston.mqtt;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -13,11 +14,17 @@ import com.corundumstudio.socketio.annotation.SpringAnnotationScanner;
 @SpringBootApplication
 public class Application {
 
+	@Value("${app.hostname}")
+	private String hostname;
+	
+	@Value("${app.port}")
+	private int port;
+	
 	@Bean
 	public SocketIOServer socketIOServer() {
 		Configuration config = new Configuration();
-		config.setHostname("localhost");
-		config.setPort(9092);
+		config.setHostname(hostname);
+		config.setPort(port);
 		return new SocketIOServer(config);
 	}
 

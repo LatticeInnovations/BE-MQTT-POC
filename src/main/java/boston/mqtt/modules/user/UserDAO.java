@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import boston.mqtt.config.MqttUtil;
 import boston.mqtt.config.PublishResponse;
 import boston.mqtt.conn.manager.DBConnection;
+import boston.mqtt.constants.Constants;
 import boston.mqtt.model.ResponseMessageProto.ResponseMessage;
 import boston.mqtt.model.UserSyncResponseProto.UserSyncResponse;
 import boston.mqtt.model.UserSyncResponseProto.UserSyncResponse.User;
@@ -57,49 +58,48 @@ public final class UserDAO {
 				con.commit();
 				// ams user sync log exists
 				getUsersStatement = con.prepareStatement(properties.getProperty("QUERY_FETCH_UNSYNCED_USERS"));
-				getUsersStatement.setTimestamp(1, amsResultSets.getTimestamp("last_synced_on"));
+				getUsersStatement.setTimestamp(1, amsResultSets.getTimestamp(Constants.LAST_SYNCED_ON));
 			} else {
 				con.commit();
 				// new ams device
 				getUsersStatement = con.prepareStatement(properties.getProperty("QUERY_FETCH_ALL_USERS"));
 			}
-			log.info(getUsersStatement.toString());
 			resultSet = getUsersStatement.executeQuery();
 			if (resultSet.first()) {
 				resultSet.beforeFirst();
 				UserSyncResponse.Builder usersList = UserSyncResponse.newBuilder();
 				while (resultSet.next()) {
 					getUserRoles = con.prepareStatement(properties.getProperty("QUERY_FETCH_USER_ROLES"));
-					getUserRoles.setLong(1, resultSet.getLong("user_id"));
+					getUserRoles.setLong(1, resultSet.getLong(Constants.COLUMN_USER_ID));
 					rolesResultSet = getUserRoles.executeQuery();
 					if (rolesResultSet.first()) {
 						rolesResultSet.beforeFirst();
 						User.Builder user = User.newBuilder()
-								.setUserId(resultSet.getLong("user_id"))
-								.setUsername(resultSet.getString("user_name"))
-								.setFullname(resultSet.getString("full_name"))
-								.setDepartment(resultSet.getString("department"))
-								.setDesignation(resultSet.getString("designation"))
-								.setEmail(resultSet.getString("email_id"))
-								.setPhone(resultSet.getString("phone"))
-								.setCountryCode(resultSet.getString("country_code"))
-								.setPassword(resultSet.getString("password"))
-								.setStatus(resultSet.getString("status"))
-								.setCreatedOn(resultSet.getString("created_on"))
-								.setUpdatedOn(resultSet.getString("updated_on"));
-						long managerId = resultSet.getLong("manager_id");
+								.setUserId(resultSet.getLong(Constants.COLUMN_USER_ID))
+								.setUsername(resultSet.getString(Constants.COLUMN_USER_NAME))
+								.setFullname(resultSet.getString(Constants.COLUMN_USER_FULL_NAME))
+								.setDepartment(resultSet.getString(Constants.COLUMN_USER_DEPARTMENT))
+								.setDesignation(resultSet.getString(Constants.COLUMN_USER_DESIGNATION))
+								.setEmail(resultSet.getString(Constants.COLUMN_EMAIL_ID))
+								.setPhone(resultSet.getString(Constants.COLUMN_USER_PHONE))
+								.setCountryCode(resultSet.getString(Constants.COLUMN_USER_PHONE_COUNTRY_CODE))
+								.setPassword(resultSet.getString(Constants.COLUMN_PASSWORD))
+								.setStatus(resultSet.getString(Constants.COLUMN_STATUS))
+								.setCreatedOn(resultSet.getString(Constants.CREATED_ON))
+								.setUpdatedOn(resultSet.getString(Constants.UPDATED_ON));
+						long managerId = resultSet.getLong(Constants.COLUMN_MANAGER_ID);
 						if (managerId > 0) {
 							getUserManager = con.prepareStatement(properties.getProperty("QUERY_FETCH_USER_MANAGER"));
 							getUserManager.setLong(1, managerId);
 							managerResultSet = getUserManager.executeQuery();
 							if (managerResultSet.first()) {
 								Manager manager = Manager.newBuilder()
-										.setUserId(managerResultSet.getLong("user_id"))
-										.setUsername(managerResultSet.getString("user_name"))
-										.setFullname(managerResultSet.getString("full_name"))
-										.setEmail(managerResultSet.getString("email_id"))
-										.setPhone(managerResultSet.getString("phone"))
-										.setCountryCode(managerResultSet.getString("country_code"))
+										.setUserId(managerResultSet.getLong(Constants.COLUMN_USER_ID))
+										.setUsername(managerResultSet.getString(Constants.COLUMN_USER_NAME))
+										.setFullname(managerResultSet.getString(Constants.COLUMN_USER_FULL_NAME))
+										.setEmail(managerResultSet.getString(Constants.COLUMN_EMAIL_ID))
+										.setPhone(managerResultSet.getString(Constants.COLUMN_USER_PHONE))
+										.setCountryCode(managerResultSet.getString(Constants.COLUMN_USER_PHONE_COUNTRY_CODE))
 										.build();
 								user.setManager(manager);
 							} else {
@@ -112,14 +112,14 @@ public final class UserDAO {
 						Roles.Builder roles = Roles.newBuilder();
 						while (rolesResultSet.next()) {
 							roles
-							.setRoleId(rolesResultSet.getLong("role_id"))
-							.setRoleDesc(rolesResultSet.getString("role_desc"));
+							.setRoleId(rolesResultSet.getLong(Constants.COLUMN_ROLE_ID))
+							.setRoleDesc(rolesResultSet.getString(Constants.COLUMN_USER_ROLE_DESC));
 						}
 						user.addRoles(roles);
 						usersList.addUser(user);
 					} else {
 						con.rollback();
-						log.info("User roles not found.");
+						log.info("User role(s) not found.");
 					}
 				}
 				// publish user list to the ams client
@@ -132,17 +132,17 @@ public final class UserDAO {
 						 .toByteArray(), clientId, "users/");
 			}
 			if (published) {
-				log.info("Users published to ams successfully..");
+				log.info("User(s) published to ams successfully..");
 			} else {
-				log.info("Something went wrong.");
+				log.info(Constants.SOMETHING_WENT_WRONG);
 			}
 		} catch (Exception e) {
 			try {
 				con.rollback();
 			} catch (SQLException e2) {
-				log.error("Exception At: ", e2);
+				log.error(Constants.EXCEPTION, e2);
 			}
-			log.error("Exception At: ", e);
+			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.getInstance().closeConnection(con, getUserRoles);
 			DBConnection.getInstance().closeConnection(con, getUsersStatement);
@@ -173,22 +173,21 @@ public final class UserDAO {
 				updateSyncLogStmt.setLong(1, clinetId);
 				updateSyncLogStmt.setTimestamp(2, timestamp);
 			}
-			log.info(updateSyncLogStmt.toString());
 			result = updateSyncLogStmt.executeUpdate();
 			if (result == 1) {
 				con.commit();
 				log.info("AMS user sync info successfully saved.");
 			} else {
 				con.rollback();
-				throw new RuntimeException("Ams sync log info not saved.");
+				log.error("Ams sync log info not saved.");
 			}
 		} catch (Exception e) {
 			try {
 				con.rollback();
 			} catch (SQLException e2) {
-				log.error("Exception At: ", e2);
+				log.error(Constants.EXCEPTION, e2);
 			}
-			log.error("Exception At: ", e);
+			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.getInstance().closeConnection(con, updateSyncLogStmt);
 			DBConnection.getInstance().closeConnection(con, existingAmsUserSync);

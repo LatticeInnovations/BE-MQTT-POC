@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package proto;
+
+option java_package = "boston.mqtt.model";
+option java_outer_classname = "AmsProcessProto";
+
+message AmsProcess {
+
+int64 clientId = 1;
+  message Process {
+  string processId = 1;
+     }
+
+  repeated Process process = 2;
+}
