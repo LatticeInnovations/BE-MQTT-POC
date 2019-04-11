@@ -129,7 +129,7 @@ public final class UserDAO {
 				 published = PublishResponse.mqttPublishMessage(MqttUtil.mqttAsyncClient, ResponseMessage.newBuilder()
 						 .setMessage("User(s) already synced to device.")
 						 .build()
-						 .toByteArray(), clientId, "users/");
+						 .toByteArray(),"response/users/"+clientId);
 			}
 			if (published) {
 				log.info("User(s) published to ams successfully..");

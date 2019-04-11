@@ -105,7 +105,7 @@ public final class ScheduleDAO {
 				 published = PublishResponse.mqttPublishMessage(MqttUtil.mqttAsyncClient, ResponseMessage.newBuilder()
 						 .setMessage("Schedule(s) already synced to device.")
 						 .build()
-						 .toByteArray(), clientId, "schedules/");
+						 .toByteArray(),"response/schedules/"+clientId);
 			}
 			if (published) {
 				log.info("Schedule(s) published to ams successfully..");

@@ -8,9 +8,15 @@ option java_outer_classname = "AmsProcessProto";
 message AmsProcess {
 
 int64 clientId = 1;
-  message Process {
-  string processId = 1;
+  message AmsProcessDetails {
+  int64 pid = 1;
+  string processId = 2;
+  string title = 3;
+  string productName = 4;
+    string updatedOn = 5;
+    int32 modified = 6;
+    bool isActive = 7;
      }
 
-  repeated Process process = 2;
+  repeated AmsProcessDetails amsProcessDetails = 2;
 }

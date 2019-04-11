@@ -17,12 +17,12 @@ public final class PublishResponse {
 	private PublishResponse() {
 	}
 
-	public static boolean mqttPublishMessage(MqttAsyncClient mqttClient, byte[] response, long clientId, String topic) {
+	public static boolean mqttPublishMessage(MqttAsyncClient mqttClient, byte[] response, String topic) {
 		try {
 			MqttMessage message = new MqttMessage(response);
 			message.setQos(0);
 			message.setRetained(false);
-			mqttClient.publish("response/" + topic + "/" + clientId, message);
+			mqttClient.publish(topic, message);
 			return true;
 		} catch (MqttException e) {
 			log.error("Exception At: {}", e);

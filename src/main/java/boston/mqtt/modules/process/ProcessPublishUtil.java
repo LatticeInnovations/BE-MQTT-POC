@@ -19,13 +19,14 @@ public class ProcessPublishUtil {
 			MqttMessage message = new MqttMessage(processList);
 			message.setQos(0);
 			message.setRetained(false);
+			log.info("ams/sync/process/"+clientId);
 			mqttClient.publish("ams/sync/process/" + clientId, message);
 			return true;
 		} catch (MqttException e) {
 			log.error("msg: " + e.getMessage());
 			log.error("cause: " + e.getCause());
 			e.printStackTrace();
-			return false;
 		}
+		return false;
 	}
 }
