@@ -34,7 +34,6 @@ public final class ProcessSyncLog {
 	public static void saveAmsProcessSyncLog(long clientId, Timestamp timestamp) {
 		final Connection con = DBConnection.getInstance().getConnection();
 		PreparedStatement updateSyncLogStmt = null;
-		//PreparedStatement updateAmsSyncFlag = null;
 		PreparedStatement existingAmsProcessSync = null;
 		ResultSet amsResultSets = null;
 		int result = 0;
@@ -56,10 +55,11 @@ public final class ProcessSyncLog {
 			}
 			result = updateSyncLogStmt.executeUpdate();
 			if (result == 1) {
-				log.info("Other AMS devices set to unsynced successfully...");
+				con.commit();
+				log.info("Ams process sync log info saved successfully...");
 			} else {
 				con.rollback();
-				log.error("Ams sync log info not saved.");
+				log.error("Ams process sync log info not saved.");
 			}
 		} catch (Exception e) {
 			try {

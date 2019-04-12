@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -54,8 +53,7 @@ public final class ProcessDAO {
 		if (result) {
 			log.info("Process response published to ams successfully..");
 		} else {
-			log.info(Constants.SOMETHING_WENT_WRONG);
-			// TODO case need to be handle
+			log.info("Error in publishing processes to ams...");
 		}
 	}
 
@@ -92,14 +90,10 @@ public final class ProcessDAO {
 				// adding an empty processIds map builder
 				processList.addProcessIds(ProcessIds.newBuilder().build());
 				// publishing to ams
-				if (publishProcessList(processList.build().toByteArray(), clientId)) {
-					return true;
-				}
+				return publishProcessList(processList.build().toByteArray(), clientId);
 			} else {
 				// process(es) is/are already synced to device, sending message...
-				if (publishProcessResponseMessage(clientId, "Process list already synced to device.")) {
-					return true;
-				}
+				return publishProcessResponseMessage(clientId, "Process list already synced to device.");
 			}
 		} catch (Exception e) {
 			try {
@@ -122,12 +116,13 @@ public final class ProcessDAO {
 		ResultSet processResultSets = null;
 		PlatformProcess.Builder processList = PlatformProcess.newBuilder();
 		int insertOrUpdate = 0;
-		List<String> updatedProcessIds = new ArrayList<>();
+//		List<String> updatedProcessIds = new ArrayList<>();
+		StringBuilder updatedIds = new StringBuilder();
 		try {
 			con.setAutoCommit(false);
 			for (AmsProcessDetails amsProcessDetails : amsProcessList) {
 				String processId = amsProcessDetails.getProcessId();
-				if (processId != null) {
+				if (processId != null && !processId.isEmpty()) {
 					// fetch process details from process master table
 					existingAmsProcessSync = con
 							.prepareStatement(properties.getProperty("QUERY_FETCH_EXISTING_PROCESS"));
@@ -138,30 +133,31 @@ public final class ProcessDAO {
 						if (amsProcessDetails.getModified() > processResultSets.getInt("is_modified")) {
 							updateProcess(amsProcessDetails);
 							insertOrUpdate++;
-							updatedProcessIds.add(processId);
+							updatedIds.append("'").append(processId).append("',");
+							// updatedProcessIds.add(processId);
 						} else if (amsProcessDetails.getModified() == processResultSets.getInt("is_modified")) {
 							// check updated_on
 							Timestamp amsProcessTimestamp = Timestamp.valueOf(amsProcessDetails.getUpdatedOn());
 							if (amsProcessTimestamp.after(processResultSets.getTimestamp("updated_on"))) {
 								updateProcess(amsProcessDetails);
 								insertOrUpdate++;
+								updatedIds.append("'").append(processId).append("',");
 							}
 						}
 					} else {
 						log.error("Process with id '" + processId + "' not found");
-						if (publishProcessResponseMessage(clientId, "Process with id '" + processId + "' not found")) {
-							return false;
-						}
+						return publishProcessResponseMessage(clientId, "Process with id '" + processId + "' not found");
 					}
 				} else {
 					// insert into process master
-					String insertedProcessId = insertProcess(amsProcessDetails);
-					if (insertedProcessId != null) {
+					String returnedProcessId = insertProcess(amsProcessDetails);
+					if (returnedProcessId != null) {
 						processList.addProcessIds(PlatformProcess.ProcessIds.newBuilder()
-								.setPid(amsProcessDetails.getPid()).setProcessId(insertedProcessId)).build();
+								.setPid(amsProcessDetails.getPid()).setProcessId(returnedProcessId)).build();
 					}
 					insertOrUpdate++;
-					updatedProcessIds.add(insertedProcessId);
+					// updatedProcessIds.add(insertedProcessId);
+					updatedIds.append("'").append(returnedProcessId).append("',");
 				}
 			}
 			if (insertOrUpdate > 0) {
@@ -169,12 +165,9 @@ public final class ProcessDAO {
 				log.info("Setting all other ams devices to unsynced...");
 				if (unsyncedOtherAmsDevices(clientId)) {
 					log.info("All processes updated successfully... publishing message...");
-					if (publishProcessResponseMessage(clientId, "Process(es) updated successfully on platform.")) {
-						return false;
-					}
+					updatedIds.setLength(updatedIds.length() - 1);
+					return getAllModifiedProcessAndPublish(updatedIds, processList, clientId);
 				}
-			} else {
-				// get all modified processes held on platform's process master
 			}
 		} catch (Exception e) {
 			try {
@@ -249,26 +242,23 @@ public final class ProcessDAO {
 	private static String insertProcess(AmsProcessDetails amsProcessDetails) {
 		final Connection con = DBConnection.getInstance().getConnection();
 		PreparedStatement insertProcess = null;
-		ResultSet getIdfromResult = null;
 		int result = 0;
 		try {
 			con.setAutoCommit(false);
 			insertProcess = con.prepareStatement(properties.getProperty("INSERT_PROCESS_MASTER"));
-			insertProcess.setString(1, amsProcessDetails.getProductName());
-			insertProcess.setString(2, amsProcessDetails.getTitle());
-			insertProcess.setBoolean(3, amsProcessDetails.getIsActive());
-			insertProcess.setInt(4, amsProcessDetails.getModified());
-			insertProcess.setTimestamp(5, Timestamp.valueOf(amsProcessDetails.getUpdatedOn()));
-			result = insertProcess.executeUpdate();
-			if (result == 1) {
-				getIdfromResult = insertProcess.getGeneratedKeys();
-				if (getIdfromResult.next()) {
+			String generatedProcessId = ProcessIdGenerator.generate();
+			if (generatedProcessId != null) {
+				insertProcess.setString(1, generatedProcessId);
+				insertProcess.setString(2, amsProcessDetails.getProductName());
+				insertProcess.setString(3, amsProcessDetails.getTitle());
+				insertProcess.setBoolean(4, amsProcessDetails.getIsActive());
+				insertProcess.setInt(5, amsProcessDetails.getModified());
+				insertProcess.setTimestamp(6, Timestamp.valueOf(amsProcessDetails.getUpdatedOn()));
+				result = insertProcess.executeUpdate();
+				if (result == 1) {
 					con.commit();
 					log.info("Process created successfully..");
-					String processId = getIdfromResult.getString(Constants.COLUMN_PROCESS_ID);
-					if (processId != null) {
-						return processId;
-					}
+					return generatedProcessId;
 				}
 			}
 		} catch (Exception e) {
@@ -292,7 +282,7 @@ public final class ProcessDAO {
 			updateAmsSyncFlag = con.prepareStatement(properties.getProperty("UPDATE_OTHER_AMS_PROCESS_SYNC_FLAG"));
 			updateAmsSyncFlag.setLong(1, clientId);
 			result = updateAmsSyncFlag.executeUpdate();
-			if (result == 1) {
+			if (result > 0) {
 				log.info("Other AMS devices set to unsynced successfully.");
 				return true;
 			} else {
@@ -308,6 +298,71 @@ public final class ProcessDAO {
 			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.getInstance().closeConnection(con, updateAmsSyncFlag);
+		}
+		return false;
+	}
+
+	private static boolean getAllModifiedProcessAndPublish(StringBuilder updatedIds, Builder processList,
+			long clientId) {
+		final Connection con = DBConnection.getInstance().getConnection();
+		PreparedStatement getModifiedProcess = null;
+		ResultSet modifiedProcessResults = null;
+		try {
+			con.setAutoCommit(false);
+			if (updatedIds.length() == 0) {
+				// get all modified processes
+				getModifiedProcess = con.prepareStatement(properties.getProperty("QUERY_FETCH_ALL_PROCESS"));
+				System.out.println(updatedIds);
+				modifiedProcessResults = getModifiedProcess.executeQuery();
+				if (modifiedProcessResults.next()) {
+					con.commit();
+					modifiedProcessResults.beforeFirst();
+					while (modifiedProcessResults.next()) {
+						PlatformProcessDetails processDetails = PlatformProcessDetails.newBuilder()
+								.setProcessId(modifiedProcessResults.getString(Constants.COLUMN_PROCESS_ID))
+								.setTitle(modifiedProcessResults.getString("title"))
+								.setIsActive(modifiedProcessResults.getBoolean("is_active"))
+								.setModified(modifiedProcessResults.getInt("is_modified"))
+								.setUpdatedOn(modifiedProcessResults.getString("updated_on")).build();
+						processList.addPlatformProcessDetails(processDetails);
+					}
+				}
+			} else {
+				// get all modified processes held on platform's process master
+				StringBuilder stringBuilder = new StringBuilder()
+						.append("select * from process_master WHERE is_modified = 1 AND process_id NOT IN (")
+						.append(updatedIds).append(")");
+				getModifiedProcess = con.prepareStatement(stringBuilder.toString());
+				System.out.println(updatedIds);
+				// getModifiedProcess.setString(1, updatedIds);
+				System.out.println(getModifiedProcess.toString());
+				modifiedProcessResults = getModifiedProcess.executeQuery();
+				System.out.println(modifiedProcessResults.getMetaData().getColumnCount());
+				if (modifiedProcessResults.next()) {
+					con.commit();
+					modifiedProcessResults.beforeFirst();
+					while (modifiedProcessResults.next()) {
+						PlatformProcessDetails processDetails = PlatformProcessDetails.newBuilder()
+								.setProcessId(modifiedProcessResults.getString(Constants.COLUMN_PROCESS_ID))
+								.setTitle(modifiedProcessResults.getString("title"))
+								.setIsActive(modifiedProcessResults.getBoolean("is_active"))
+								.setModified(modifiedProcessResults.getInt("is_modified"))
+								.setUpdatedOn(modifiedProcessResults.getString("updated_on")).build();
+						processList.addPlatformProcessDetails(processDetails);
+					}
+				}
+			}
+			// publishing to ams
+			return publishProcessList(processList.build().toByteArray(), clientId);
+		} catch (Exception e) {
+			try {
+				con.rollback();
+			} catch (SQLException e2) {
+				log.error(Constants.EXCEPTION, e2);
+			}
+			log.error(Constants.EXCEPTION, e);
+		} finally {
+			DBConnection.getInstance().closeConnection(con, getModifiedProcess);
 		}
 		return false;
 	}

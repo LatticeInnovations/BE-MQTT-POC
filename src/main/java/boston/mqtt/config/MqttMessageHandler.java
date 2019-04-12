@@ -56,7 +56,7 @@ public final class MqttMessageHandler {
 				}
 				break;
 			case "sync/process":
-				log.info("process...");
+				log.info("process received from ams...");
 				AmsProcess receivedProcess = AmsProcess.parseFrom(message.getPayload());
 				ProcessDAO.getProcessService(receivedProcess);
 				break;
@@ -67,6 +67,7 @@ public final class MqttMessageHandler {
 							new Timestamp(System.currentTimeMillis()));
 				} else {
 					log.error("Process(es) not synced.");
+					//TODO
 				}
 				break;
 			default:

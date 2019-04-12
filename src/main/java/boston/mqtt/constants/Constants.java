@@ -30,4 +30,5 @@ public final class Constants {
 	public static final String COLUMN_TITLE = "title";
 	public static final String SOMETHING_WENT_WRONG = "Something went wrong.";
 	public static final String LAST_SYNCED_ON = "last_synced_on";
+	public static final String PROCESS_PREFIX = "PR-";
 }

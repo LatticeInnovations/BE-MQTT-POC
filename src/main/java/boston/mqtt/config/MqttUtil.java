@@ -41,7 +41,7 @@ public class MqttUtil {
 			connOpts.setAutomaticReconnect(true);
 			connOpts.setCleanSession(true);
 			connOpts.setKeepAliveInterval(10);
-			connOpts.setConnectionTimeout(60);
+			//connOpts.setConnectionTimeout(60);
 			connOpts.setUserName("subscriber");
 			connOpts.setPassword("subscriber".toCharArray());
 			System.out.println(connOpts.toString());
