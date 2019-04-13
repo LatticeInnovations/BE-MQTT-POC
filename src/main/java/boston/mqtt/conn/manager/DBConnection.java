@@ -2,8 +2,8 @@ package boston.mqtt.conn.manager;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -19,22 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public final class DBConnection {
 
-	private static DBConnection dbConnection;
 	private static HikariDataSource dataSource;
 
 	private DBConnection() {
-	}
-
-	// singleton
-	public static DBConnection getInstance() {
-		if (dbConnection == null) {
-			synchronized (DBConnection.class) {
-				if (dbConnection == null) {
-					dbConnection = new DBConnection();
-				}
-			}
-		}
-		return dbConnection;
 	}
 
 	private static HikariDataSource getDatasource() {
@@ -57,7 +44,7 @@ public final class DBConnection {
 		return dataSource;
 	}
 
-	public Connection getConnection() {
+	public static Connection getConnection() {
 		getDatasource();
 		try {
 			return dataSource.getConnection();
@@ -67,36 +54,20 @@ public final class DBConnection {
 		}
 	}
 
-	public static void closeDataSource() {
-		log.info("Trying to close datasource.");
+	public static void closeConnection(Connection con, PreparedStatement pmst, ResultSet resultSet) {
 		try {
-			if (!dataSource.isClosed()) {
-				dataSource.close();
-			}
-		} catch (Exception e) {
-		}
-	}
-
-	public void closeConnection(Connection con, PreparedStatement pmst) {
-		try {
-			if (!con.isClosed()) {
+			if (con != null && !con.isClosed()) {
 				con.close();
 			}
-			if (!pmst.isClosed()) {
+			if (pmst != null && !pmst.isClosed()) {
 				pmst.close();
+			}
+			if (resultSet != null && !resultSet.isClosed()) {
+				resultSet.close();
 			}
 		} catch (Exception e) {
 			log.info(e.getMessage());
 		}
 	}
 
-	public void closeStatement(Statement stmt) {
-		try {
-			if (!stmt.isClosed()) {
-				stmt.close();
-			}
-		} catch (Exception e) {
-			log.info(e.getMessage());
-		}
-	}
 }

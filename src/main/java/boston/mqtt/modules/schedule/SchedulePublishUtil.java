@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class SchedulePublishUtil {
 
+	private SchedulePublishUtil() {
+	}
+
 	public static boolean mqttPublishSchedules(MqttAsyncClient mqttClient, byte[] schedulesList, long clientId) {
 		try {
 			MqttMessage message = new MqttMessage(schedulesList);

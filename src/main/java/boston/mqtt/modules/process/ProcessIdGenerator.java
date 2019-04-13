@@ -12,13 +12,17 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ProcessIdGenerator {
 
+	private ProcessIdGenerator() {
+	}
+
 	public static String generate() {
-		final Connection con = DBConnection.getInstance().getConnection();
+		final Connection con = DBConnection.getConnection();
 		PreparedStatement statement = null;
 		ResultSet rs = null;
 		String generatedId = null;
 		try {
 			statement = con.prepareStatement("select max(process_id) from process_master");
+			log.info(statement.toString());
 			rs = statement.executeQuery();
 			if (rs.first() && rs.getString(1) != null) {
 				generatedId = Constants.PROCESS_PREFIX
@@ -29,7 +33,7 @@ public class ProcessIdGenerator {
 		} catch (SQLException e) {
 			log.error(Constants.EXCEPTION, e);
 		} finally {
-			DBConnection.getInstance().closeConnection(con, statement);
+			DBConnection.closeConnection(con, statement, rs);
 		}
 		return generatedId;
 	}

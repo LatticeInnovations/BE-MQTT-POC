@@ -11,10 +11,12 @@ import boston.mqtt.constants.Constants;
 import boston.mqtt.model.AmsProcessProto.AmsProcess;
 import boston.mqtt.model.AmsSyncAckProto.AmsSyncAck;
 import boston.mqtt.model.SyncRequestProto.SyncRequest;
-import boston.mqtt.modules.process.ProcessSyncLog;
 import boston.mqtt.modules.process.ProcessDAO;
+import boston.mqtt.modules.process.ProcessSyncLog;
 import boston.mqtt.modules.schedule.ScheduleDAO;
+import boston.mqtt.modules.schedule.ScheduleSyncLog;
 import boston.mqtt.modules.user.UserDAO;
+import boston.mqtt.modules.user.UserSyncLog;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -36,7 +38,7 @@ public final class MqttMessageHandler {
 			case "sync/ack/users":
 				AmsSyncAck amsUserSyncAck = AmsSyncAck.parseFrom(message.getPayload());
 				if (amsUserSyncAck.getReceived()) {
-					UserDAO.saveAmsUserSyncLog(amsUserSyncAck.getClientId(), new Timestamp(System.currentTimeMillis()));
+					UserSyncLog.saveAmsUserSyncLog(amsUserSyncAck.getClientId(), new Timestamp(System.currentTimeMillis()));
 				} else {
 					log.error("User(s) not synced.");
 				}
@@ -49,14 +51,14 @@ public final class MqttMessageHandler {
 			case "sync/ack/schedules":
 				AmsSyncAck amsSyncAck = AmsSyncAck.parseFrom(message.getPayload());
 				if (amsSyncAck.getReceived()) {
-					ScheduleDAO.saveAmsScheduleSyncLog(amsSyncAck.getClientId(),
+					ScheduleSyncLog.saveAmsScheduleSyncLog(amsSyncAck.getClientId(),
 							new Timestamp(System.currentTimeMillis()));
 				} else {
 					log.error("Schedule(s) not synced.");
 				}
 				break;
 			case "sync/process":
-				log.info("process received from ams...");
+				log.info("process(es) received from ams...");
 				AmsProcess receivedProcess = AmsProcess.parseFrom(message.getPayload());
 				ProcessDAO.getProcessService(receivedProcess);
 				break;

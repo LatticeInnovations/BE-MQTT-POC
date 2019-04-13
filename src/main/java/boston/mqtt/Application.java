@@ -16,20 +16,16 @@ public class Application {
 
 	@Value("${app.hostname}")
 	private String hostname;
-	
+
 	@Value("${app.port}")
 	private int port;
-	
+
 	@Bean
 	public SocketIOServer socketIOServer() {
 		Configuration config = new Configuration();
 		config.setHostname(hostname);
 		config.setPort(port);
 		return new SocketIOServer(config);
-	}
-
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
 	}
 
 	@Bean
@@ -42,4 +38,9 @@ public class Application {
 	public SpringAnnotationScanner springAnnotationScanner(SocketIOServer ssrv) {
 		return new SpringAnnotationScanner(ssrv);
 	}
+
+	public static void main(String[] args) {
+		SpringApplication.run(Application.class, args);
+	}
+
 }

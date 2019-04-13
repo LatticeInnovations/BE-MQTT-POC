@@ -1,10 +1,12 @@
 package boston.mqtt;
 
-import boston.mqtt.config.MqttUtil;
-import com.corundumstudio.socketio.SocketIOServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import com.corundumstudio.socketio.SocketIOServer;
+
+import boston.mqtt.config.MqttUtil;
 
 @Component
 public class SrvRunner implements CommandLineRunner {
@@ -21,10 +23,13 @@ public class SrvRunner implements CommandLineRunner {
     	
     	MqttUtil mqttUtil = new MqttUtil();
 		mqttUtil.mqttConnectAndSubscribe("subscriber");
-
+        
         server.start();
         Thread.sleep(Integer.MAX_VALUE);
         server.stop();
+        
+        
     }
 
+    
 }

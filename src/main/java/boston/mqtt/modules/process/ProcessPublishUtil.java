@@ -7,12 +7,16 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import boston.mqtt.constants.Constants;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class ProcessPublishUtil {
+
+	private ProcessPublishUtil() {
+	}
 
 	public static boolean mqttPublishProcess(MqttAsyncClient mqttClient, byte[] processList, long clientId) {
 		try {
@@ -22,9 +26,7 @@ public class ProcessPublishUtil {
 			mqttClient.publish("ams/sync/process/" + clientId, message);
 			return true;
 		} catch (MqttException e) {
-			log.error("msg: " + e.getMessage());
-			log.error("cause: " + e.getCause());
-			e.printStackTrace();
+			log.error(Constants.EXCEPTION, e);
 		}
 		return false;
 	}

@@ -15,6 +15,9 @@ import lombok.extern.slf4j.Slf4j;
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class UserPublishUtil {
 
+	private UserPublishUtil() {
+	}
+
 	public static boolean mqttPublishUsers(MqttAsyncClient mqttClient, byte[] usersList, long clientId) {
 		try {
 			MqttMessage message = new MqttMessage(usersList);

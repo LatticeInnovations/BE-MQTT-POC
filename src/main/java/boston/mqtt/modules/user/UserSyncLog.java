@@ -1,4 +1,4 @@
-package boston.mqtt.modules.process;
+package boston.mqtt.modules.user;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -18,43 +18,43 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
-public final class ProcessSyncLog {
+public final class UserSyncLog {
 
-	private ProcessSyncLog() {
+	private UserSyncLog() {
 	}
 
-	public static void saveAmsProcessSyncLog(long clientId, Timestamp timestamp) {
+	public static void saveAmsUserSyncLog(long clinetId, Timestamp timestamp) {
 		final Connection con = DBConnection.getConnection();
 		PreparedStatement updateSyncLogStmt = null;
-		PreparedStatement existingAmsProcessSync = null;
+		PreparedStatement existingAmsUserSync = null;
 		ResultSet amsResultSets = null;
 		int result = 0;
 		try {
 			con.setAutoCommit(false);
-			existingAmsProcessSync = con
-					.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_EXISTING_AMS_PROCESS_SYNC_LOG"));
-			existingAmsProcessSync.setLong(1, clientId);
-			log.info(existingAmsProcessSync.toString());
-			amsResultSets = existingAmsProcessSync.executeQuery();
+			existingAmsUserSync = con
+					.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_EXISTING_AMS_USER_SYNC_LOG"));
+			existingAmsUserSync.setLong(1, clinetId);
+			log.info(existingAmsUserSync.toString());
+			amsResultSets = existingAmsUserSync.executeQuery();
 			if (amsResultSets.first()) {
 				// update existing record
-				updateSyncLogStmt = con.prepareStatement(ResourceManager.getQueryValue("UPDATE_AMS_PROCESS_SYNC_LOG"));
+				updateSyncLogStmt = con.prepareStatement(ResourceManager.getQueryValue("UPDATE_AMS_USER_SYNC_LOG"));
 				updateSyncLogStmt.setTimestamp(1, timestamp);
-				updateSyncLogStmt.setLong(2, clientId);
+				updateSyncLogStmt.setLong(2, clinetId);
 			} else {
-				// new insert in ams_process_sync table
-				updateSyncLogStmt = con.prepareStatement(ResourceManager.getQueryValue("INSERT_AMS_PROCESS_SYNC_LOG"));
-				updateSyncLogStmt.setLong(1, clientId);
+				// new insert in ams_user_sync table
+				updateSyncLogStmt = con.prepareStatement(ResourceManager.getQueryValue("INSERT_AMS_USER_SYNC_LOG"));
+				updateSyncLogStmt.setLong(1, clinetId);
 				updateSyncLogStmt.setTimestamp(2, timestamp);
 			}
 			log.info(updateSyncLogStmt.toString());
 			result = updateSyncLogStmt.executeUpdate();
 			if (result == 1) {
 				con.commit();
-				log.info("Ams process sync log info saved successfully...");
+				log.info("AMS user sync info successfully saved.");
 			} else {
 				con.rollback();
-				log.error("Ams process sync log info not saved.");
+				log.error("Ams sync log info not saved.");
 			}
 		} catch (Exception e) {
 			try {
@@ -65,7 +65,7 @@ public final class ProcessSyncLog {
 			log.error(Constants.EXCEPTION, e);
 		} finally {
 			DBConnection.closeConnection(con, updateSyncLogStmt, null);
-			DBConnection.closeConnection(con, existingAmsProcessSync, amsResultSets);
+			DBConnection.closeConnection(con, existingAmsUserSync, amsResultSets);
 		}
 	}
 }

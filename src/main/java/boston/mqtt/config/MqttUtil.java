@@ -28,7 +28,7 @@ public class MqttUtil {
 	private static final Logger logger = LogManager.getLogger(MqttUtil.class);
 
 	private static final String PROPERTIES_FILE_NAME = "/mqtt.properties";
-	static Properties props = new Properties();
+	private static Properties props = new Properties();
 
 	public static MqttAsyncClient mqttAsyncClient;
 	
