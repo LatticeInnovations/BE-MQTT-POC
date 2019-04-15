@@ -32,7 +32,7 @@ public final class ProcessDAO {
 
 	private ProcessDAO() {
 	}
-	
+
 	/** This is the front handler of this class */
 	public static void getProcessService(AmsProcess receivedProcess) {
 		boolean result = false;
@@ -45,7 +45,7 @@ public final class ProcessDAO {
 			result = updateProcessList(receivedProcess.getAmsProcessDetailsList(), clientId);
 		}
 		if (result) {
-			log.info("Process response published to ams successfully..");
+			log.info("Process response published to ams '" + clientId + "' successfully..");
 		} else {
 			log.info("Error in publishing processes to ams...");
 		}
@@ -70,8 +70,8 @@ public final class ProcessDAO {
 				con.commit();
 				// ams process sync log exists, fetching processes between last_synced_on and
 				// current timestamp..
-				getProcessStatement = con.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_UNSYNCED_PROCESS"));
-				getProcessStatement.setTimestamp(1, amsResultSets.getTimestamp(Constants.LAST_SYNCED_ON));
+				getProcessStatement = con
+						.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_UNSYNCED_PROCESS"));
 			} else {
 				con.commit();
 				// ams process log does not exists, fetching all processes..
@@ -157,7 +157,7 @@ public final class ProcessDAO {
 			if (insertOrUpdate > 0) {
 				// update other ams to unsynced
 				log.info("Setting all other ams devices to unsynced...");
-				if (unsyncedOtherAmsDevices(clientId)) {
+				if (ProcessSyncLog.unsyncedOtherAmsDevices(clientId)) {
 					updatedIds.setLength(updatedIds.length() - 1);
 					log.info("All processes updated successfully... publishing modified process list if any...");
 					return getAllModifiedProcessAndPublish(updatedIds, processList, clientId);
@@ -196,6 +196,10 @@ public final class ProcessDAO {
 				con.commit();
 				log.info("Process updated successfully.. ID: " + amsProcessDetails.getProcessId());
 			}
+			else {
+				con.rollback();
+				log.info("Error in updating process..");
+			}
 		} catch (Exception e) {
 			try {
 				con.rollback();
@@ -231,6 +235,10 @@ public final class ProcessDAO {
 					log.info("Process created successfully..");
 					return generatedProcessId;
 				}
+				else {
+					con.rollback();
+					log.info("Error in creating process..");
+				}
 			}
 		} catch (Exception e) {
 			try {
@@ -245,45 +253,27 @@ public final class ProcessDAO {
 		return null;
 	}
 
-	private static boolean unsyncedOtherAmsDevices(long clientId) {
-		final Connection con = DBConnection.getConnection();
-		PreparedStatement updateAmsSyncFlag = null;
-		int result = 0;
-		try {
-			updateAmsSyncFlag = con.prepareStatement(ResourceManager.getQueryValue("UPDATE_OTHER_AMS_PROCESS_SYNC_FLAG"));
-			updateAmsSyncFlag.setLong(1, clientId);
-			log.info(updateAmsSyncFlag.toString());
-			result = updateAmsSyncFlag.executeUpdate();
-			if (result > 0) {
-				log.info("Other AMS devices set to unsynced successfully.");
-				return true;
-			} else {
-				log.info("Other AMS device(s) does not exists..");
-				return true;
-			}
-		} catch (Exception e) {
-			try {
-				con.rollback();
-			} catch (SQLException e2) {
-				log.error(Constants.EXCEPTION, e2);
-			}
-			log.error(Constants.EXCEPTION, e);
-		} finally {
-			DBConnection.closeConnection(con, updateAmsSyncFlag, null);
-		}
-		return false;
-	}
-
 	private static boolean getAllModifiedProcessAndPublish(StringBuilder updatedIds, Builder processList,
 			long clientId) {
 		final Connection con = DBConnection.getConnection();
 		PreparedStatement getModifiedProcess = null;
 		ResultSet modifiedProcessResults = null;
+		PreparedStatement existingAmsProcessSync = null;
+		ResultSet amsResultSets = null;
 		try {
 			con.setAutoCommit(false);
-			if (updatedIds.length() == 0) {
+			existingAmsProcessSync = con
+					.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_EXISTING_AMS_PROCESS_SYNC_LOG"));
+			existingAmsProcessSync.setLong(1, clientId);
+			log.info(existingAmsProcessSync.toString());
+			amsResultSets = existingAmsProcessSync.executeQuery();
+			// checking if this clientId exists in ams_process_sync table
+			if (!amsResultSets.first()) {
 				// get all modified processes
-				getModifiedProcess = con.prepareStatement(ResourceManager.getQueryValue("QUERY_FETCH_ALL_PROCESS"));
+				StringBuilder stringBuilder = new StringBuilder()
+						.append("select * from process_master WHERE process_id NOT IN (").append(updatedIds)
+						.append(")");
+				getModifiedProcess = con.prepareStatement(stringBuilder.toString());
 				log.info(getModifiedProcess.toString());
 				modifiedProcessResults = getModifiedProcess.executeQuery();
 				if (modifiedProcessResults.next()) {
@@ -331,11 +321,50 @@ public final class ProcessDAO {
 			}
 			log.error(Constants.EXCEPTION, e);
 		} finally {
+			DBConnection.closeConnection(con, existingAmsProcessSync, amsResultSets);
 			DBConnection.closeConnection(con, getModifiedProcess, modifiedProcessResults);
 		}
 		return false;
 	}
-	
+
+	public static boolean updateProcessModifiedStatus() {
+		final Connection con = DBConnection.getConnection();
+		PreparedStatement countModifiedStatus = null;
+		PreparedStatement updateModifiedStatus = null;
+		ResultSet modifiedCountResult = null;
+		int updatecRowCount = 0;
+		try {
+			con.setAutoCommit(false);
+			countModifiedStatus = con
+					.prepareStatement(ResourceManager.getQueryValue("QUERY_COUNT_MODIFIED_PROCESS_COUNT"));
+			log.info(countModifiedStatus.toString());
+			modifiedCountResult = countModifiedStatus.executeQuery();
+			if (modifiedCountResult.first()) {
+				int rowCount = modifiedCountResult.getInt(Constants.COUNT);
+				if (rowCount > 0) {
+					// setting modified to 0
+					updateModifiedStatus = con
+							.prepareStatement(ResourceManager.getQueryValue("UPDATE_MODIFIED_PROCESS_STATUS"));
+					updatecRowCount = updateModifiedStatus.executeUpdate();
+					if (updatecRowCount == rowCount) {
+						return true;
+					}
+				}
+			}
+		} catch (Exception e) {
+			try {
+				con.rollback();
+			} catch (SQLException e2) {
+				log.error(Constants.EXCEPTION, e2);
+			}
+			log.error(Constants.EXCEPTION, e);
+		} finally {
+			DBConnection.closeConnection(con, countModifiedStatus, modifiedCountResult);
+			DBConnection.closeConnection(con, updateModifiedStatus, null);
+		}
+		return false;
+	}
+
 	/** This method maps resultSet to builder */
 	private static Builder resultToProcessBuilderMapper(ResultSet resultSet) throws SQLException {
 		PlatformProcess.Builder processList = PlatformProcess.newBuilder();

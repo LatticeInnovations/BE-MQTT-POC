@@ -68,4 +68,59 @@ public final class ProcessSyncLog {
 			DBConnection.closeConnection(con, existingAmsProcessSync, amsResultSets);
 		}
 	}
+
+	public static boolean countNotSyncedAmsDevices() {
+		final Connection con = DBConnection.getConnection();
+		PreparedStatement getNotSyncedAmsCount = null;
+		ResultSet unsyncedCount = null;
+		try {
+			con.setAutoCommit(false);
+			getNotSyncedAmsCount = con.prepareStatement(ResourceManager.getQueryValue("QUERY_COUNT_NOT_SYNCED_AMS"));
+			log.info(getNotSyncedAmsCount.toString());
+			unsyncedCount = getNotSyncedAmsCount.executeQuery();
+			if (unsyncedCount.first() && unsyncedCount.getInt(Constants.COUNT) == 0) {
+				return true;
+			}
+		} catch (Exception e) {
+			try {
+				con.rollback();
+			} catch (SQLException e2) {
+				log.error(Constants.EXCEPTION, e2);
+			}
+			log.error(Constants.EXCEPTION, e);
+		} finally {
+			DBConnection.closeConnection(con, getNotSyncedAmsCount, unsyncedCount);
+		}
+		return false;
+	}
+
+	public static boolean unsyncedOtherAmsDevices(long clientId) {
+		final Connection con = DBConnection.getConnection();
+		PreparedStatement updateAmsSyncFlag = null;
+		int result = 0;
+		try {
+			updateAmsSyncFlag = con
+					.prepareStatement(ResourceManager.getQueryValue("UPDATE_OTHER_AMS_PROCESS_SYNC_FLAG"));
+			updateAmsSyncFlag.setLong(1, clientId);
+			log.info(updateAmsSyncFlag.toString());
+			result = updateAmsSyncFlag.executeUpdate();
+			if (result > 0) {
+				log.info("Other AMS devices set to unsynced successfully.");
+				return true;
+			} else {
+				log.info("Other AMS device(s) does not exists..");
+				return true;
+			}
+		} catch (Exception e) {
+			try {
+				con.rollback();
+			} catch (SQLException e2) {
+				log.error(Constants.EXCEPTION, e2);
+			}
+			log.error(Constants.EXCEPTION, e);
+		} finally {
+			DBConnection.closeConnection(con, updateAmsSyncFlag, null);
+		}
+		return false;
+	}
 }
