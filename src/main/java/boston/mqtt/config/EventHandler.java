@@ -24,8 +24,12 @@ public class EventHandler {
 		EventHandler.server = server;
 	}
 
-	public static void onEvent(String data) {
-		server.getBroadcastOperations().sendEvent("iot/led/1", data);
+	public static void onParam1Data(String dataPoint) {
+		server.getBroadcastOperations().sendEvent("run/param1", dataPoint);
+	}
+	
+	public static void onParam2Data(String dataPoint) {
+		server.getBroadcastOperations().sendEvent("run/param2", dataPoint);
 	}
 	
 	@OnConnect

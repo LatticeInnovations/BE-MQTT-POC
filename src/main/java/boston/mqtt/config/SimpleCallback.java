@@ -1,5 +1,8 @@
 package boston.mqtt.config;
 
+import static boston.mqtt.config.MqttMessageHandler.runMessageArrived;
+import static boston.mqtt.config.MqttMessageHandler.syncMessageArrived;
+
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -10,7 +13,7 @@ import org.springframework.stereotype.Component;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import lombok.extern.slf4j.Slf4j;
-import static boston.mqtt.config.MqttMessageHandler.arrivedMessage;
+
 /**
  * This is the MQTT Callback class which overrides the MQTT Call back methods
  *
@@ -30,7 +33,11 @@ public class SimpleCallback implements MqttCallbackExtended {
 	@Override
 	public void messageArrived(String topic, MqttMessage message) throws InvalidProtocolBufferException {
 		log.info("\nReceived a Message! \n\tTopic: " + topic + "\n");
-		arrivedMessage(topic, message);
+		if (topic.startsWith("run")) {
+			runMessageArrived(topic, message);
+		} else {
+			syncMessageArrived(topic, message);
+		}
 	}
 
 	// This callback is invoked when a message published by this client
