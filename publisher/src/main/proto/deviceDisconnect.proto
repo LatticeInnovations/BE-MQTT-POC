@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package com.agilerules.iotled.model;
+
+option java_package = "com.agilerules.iotled.model";
+option java_outer_classname = "DeviceDisconnect";
+
+message DeviceDisconnectProto {
+    string clientId = 1;
+}

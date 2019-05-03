@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package com.agilerules.iotled.model;
+
+option java_package = "com.agilerules.iotled.model";
+option java_outer_classname = "LedProto";
+
+message LedModelProto {
+    double counter = 1;
+    string clientId = 2;
+}
